@@ -2,7 +2,7 @@ import streamlit as st
 import config_data as config
 from final_rag_with_chat_history import RagService
 
-st.title("《高等代数》知识问答系统")
+st.title("408《数据结构》知识问答系统")
 st.divider()
 
 # 初始化历史消息

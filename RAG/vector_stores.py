@@ -4,13 +4,16 @@ import config_data as config
 
 
 class VectorStoreService():
-    def __init__(self,embedding):
+    def __init__(self, embedding):
         self.embedding = embedding
         self.vector_store = Chroma(
-            collection_name = config.collection_name,
-            persist_directory = config.persist_directory,
-            embedding_function = DashScopeEmbeddings(model = config.embedding_name)
+            collection_name=config.collection_name,
+            persist_directory=config.persist_directory,
+            embedding_function=self.embedding  # 使用传入的embedding实例
         )
+
+    def get_retriever(self):
+        return self.vector_store.as_retriever(search_kwargs={"k": config.similarity_threshold})
 
     def get_retriever(self):
         return self.vector_store.as_retriever(search_kwargs = {"k":config.similarity_threshold})
