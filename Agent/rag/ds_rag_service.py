@@ -1,5 +1,6 @@
 # 系统模块
 import os
+import re  # 【新增1】导入正则表达式，用于提取定位行
 from typing import List, Optional
 # 第三方库
 from langchain_core.documents import Document
@@ -8,6 +9,8 @@ from utils.config_handler import chroma_conf
 from utils.path_tool import get_abs_path
 from utils.logger_handler import logger
 from model.factory import embedding_model
+from utils.prompt_loader import load_filter_prompt
+from model.factory import chat_model
 # RAG 核心模块
 from rag.KnowledgeBaseService import KnowledgeBaseService
 from rag.vector_store import VectorStoreService
@@ -17,7 +20,6 @@ class DSRagService:
     def __init__(self, data_path: Optional[str] = None) -> None:
         logger.info("=" * 60)
         logger.info("开始初始化 DSRagService...")
-
 
         # ===================== 配置读取 & 异常捕获 =====================
         try:
@@ -104,17 +106,81 @@ class DSRagService:
         logger.info("格式化完成，返回带页码溯源文本")
         return "\n\n".join(formatted_list)
 
-    def search(self, query: str, k: Optional[int] = None) -> str:
+    # ===================== 【新增：RAG 模型过滤函数】 =====================
+    def filter_documents(self, query: str, docs: List[Document]) -> str:
         """
-        对外核心检索接口：返回带页码的格式化结果
+        RAG 后处理：使用模型过滤章节 + 清洗脏数据
+        """
+        try:
+            logger.info("开始执行 RAG 模型过滤 + 内容清洗")
+
+            # 1. 加载过滤prompt
+            filter_prompt = load_filter_prompt()
+
+            # 2. 拼接文档（带文件名，让模型判断章节）
+            doc_texts = []
+            for doc in docs:
+                source = doc.metadata.get("source", "未知文件")
+                content = doc.page_content.strip()
+                doc_texts.append(f"【文件名】{source}\n【内容】{content}")
+
+            all_docs = "\n-------------------\n".join(doc_texts)
+
+            # 3. 构造prompt
+            final_prompt = filter_prompt.format(query=query) + "\n\n待筛选资料：\n" + all_docs
+
+            # 4. 模型过滤
+            result = chat_model.invoke(final_prompt).content
+            logger.info("RAG 模型过滤完成")
+            return result
+
+        except Exception as e:
+            logger.error(f"模型过滤失败: {e}")
+            return self.format_docs(docs)  # 失败则降级返回原始格式化内容
+
+    # ===================== 【新增2：提取定位行（不返回原文）】 =====================
+    def extract_location_only(self, formatted_text: str) -> str:
+        """
+        从格式化文本中只提取定位行，不包含原文内容
+        Args:
+            formatted_text: format_docs 返回的完整文本（包含定位行+原文）
+        Returns:
+            只包含定位行的字符串，如：
+            【参考资料1 | 文件名 第2页】
+            【参考资料2 | 文件名 第5页】
+        """
+        if not formatted_text:
+            return ""
+
+        # 正则匹配：匹配以【参考资料开头，到第X页】结束的行
+        # 格式示例：【参考资料1 | 7.3.3_1 红黑树的定义和性质_副本.pdf 第2页】
+        pattern = r'【参考资料\d+ \| [^】]+?第\d+页】'
+
+        location_lines = re.findall(pattern, formatted_text)
+
+        if location_lines:
+            result = "\n".join(location_lines)
+            logger.info(f"提取定位行成功，共 {len(location_lines)} 条")
+            return result
+
+        logger.warning("未提取到定位行，返回空字符串")
+        return ""
+
+    # ===================== 【修改3：search 方法增加模式选择】 =====================
+    def search(self, query: str, k: Optional[int] = None, mode: str = "full") -> str:
+        """
+        对外核心检索接口
         Args:
             query: 查询问题
             k: 召回数量，为空则使用配置默认值
+            mode: 返回模式
+                  - "full": 返回完整内容（定位行+原文）【默认，保持兼容】
+                  - "location_only": 只返回定位行【新增，用于前端清爽显示】
         Returns:
-            格式化后的参考资料
+            格式化后的参考资料（根据mode决定内容）
         """
         logger.info("=" * 50)
-        logger.info(f"用户检索查询：{query}")
+        logger.info(f"用户检索查询：{query} | mode={mode}")
 
         try:
             k = k or self.k_default_k
@@ -128,7 +194,22 @@ class DSRagService:
                 return "未在王道408数据结构知识库中找到相关内容"
 
             logger.info(f"检索成功，命中 {len(docs)} 条结果")
-            return self.format_docs(docs)
+
+            # 【修改点】根据 mode 决定返回内容
+            full_formatted = self.format_docs(docs)
+
+            if mode == "location_only":
+                # 只返回定位行
+                result = self.extract_location_only(full_formatted)
+                logger.info(f"返回模式：仅定位行 | 长度={len(result)}")
+                return result
+            else:
+                # 默认返回完整内容（定位行+原文）
+                # 注意：这里你也可以选择先过 filter_documents 清洗
+                # cleaned_content = self.filter_documents(query, docs)
+                # return cleaned_content
+                logger.info(f"返回模式：完整内容")
+                return full_formatted
 
         except Exception as e:
             logger.error(f"检索执行异常：{str(e)}")

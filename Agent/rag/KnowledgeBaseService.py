@@ -1,11 +1,10 @@
-import os
+import os,re
 import hashlib
 from langchain_chroma import Chroma
 import chromadb
 from langchain_core.documents import Document
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-
 # 你的统一工具 & 配置
 from utils.config_handler import chroma_conf
 from utils.path_tool import get_abs_path
@@ -50,6 +49,61 @@ class KnowledgeBaseService:
         logger.info(f"📂 向量库路径：{self.persist_directory}")
         logger.info(f"📄 集合名称：{self.collection_name}")
 
+        # ===================== 增加文本清洗函数 =====================
+
+    def clean_text(self, text: str) -> str:
+        import re
+        logger.info(f"🧹 clean_text 被调用，输入长度: {len(text)}")
+
+        lines = text.splitlines()
+        cleaned_lines = []
+
+        for line in lines:
+            original_line = line
+            line = line.strip()
+
+            # 1. 跳过明显的垃圾行
+            if not line:
+                continue
+
+            # 2. 硬编码过滤水印关键词
+            watermark_keywords = [
+                "王道考研", "CSKAOYAN.COM", "cskaoyan.com", "王道计算机考研",
+                "本节内容", "知识总览", "知识回顾与重要考点", "www.cskaoyan", "skaova"
+            ]
+            if any(keyword in line for keyword in watermark_keywords):
+                continue
+
+            # 3. 过滤看起来像页码、空序号或纯数字的短行
+            if re.fullmatch(r'^[\d\s\.\-_]+$', line):
+                # 但如果行太长（比如超过10个字符），可能是有用数据，不过滤
+                if len(line) <= 10:
+                    continue
+
+            # 4. 过滤常见PPT干扰词（通常是单行的小标题或标签）
+            ppt_noise_words = ["low", "high", "pivot", "i", "j", "k", "len", "child", "parent"]
+            # 如果该行很短，并且完全匹配这些词，则跳过
+            if len(line) < 10 and line.lower() in ppt_noise_words:
+                continue
+
+            # 5. 过滤过短的行（比如长度小于3）
+            if len(line) <= 2:
+                continue
+
+            # 6. 过滤全大写且短于20字符的疑似水印行
+            if line.isupper() and len(line) < 20 and not any(c.isdigit() for c in line):
+                continue
+
+            # 如果能走到这里，说明不是垃圾行，保留
+            cleaned_lines.append(line)
+
+        # 用换行符重新组合
+        result = "\n".join(cleaned_lines)
+        logger.info(f"🧹 clean_text 完成，输出长度: {len(result)}")
+        return result
+
+
+
     # ===================== MD5 校验 =====================
     def calculate_md5(self, file_path: str) -> str:
         hash_md5 = hashlib.md5()
@@ -88,6 +142,10 @@ class KnowledgeBaseService:
                 page.metadata["page_num"] = page_num
 
                 content = page.page_content.strip()
+                #  调用文本清洗函数
+                content = self.clean_text(content)
+
+
                 if not content:
                     continue
 
