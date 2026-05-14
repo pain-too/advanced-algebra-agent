@@ -1,17 +1,21 @@
-# ==================== Python ====================
+# ==================== Python 通用忽略 ====================
 __pycache__/
 *.py[cod]
 *.pyc
 .venv/
 venv/
+*.tmp
+*.log
+*.bak
 
-# ==================== IDE ====================
+# ==================== IDE 与系统文件 ====================
 .idea/
 .vscode/
 .DS_Store
 *.swp
 
-# ==================== 项目数据（Agent） ====================
+# ==================== Agent 项目数据 ====================
+# 从仓库根目录匹配，也支持在 Agent/ 目录下生效
 Agent/chroma_db/
 Agent/data/
 Agent/logs/
@@ -20,17 +24,37 @@ Agent/__pycache__/
 Agent/.DS_Store
 Agent/.idea/
 
-# ==================== 项目数据（RAG） ====================
+# 补充：在 Agent/ 目录下直接匹配的规则（双重保险）
+chroma_db/
+data/
+logs/
+md5_record.txt
+__pycache__/
+.DS_Store
+.idea/
+
+# ==================== RAG 项目数据 ====================
 RAG/chroma_db/
 RAG/chat_history/
 RAG/data/
 RAG/study/
+RAG/material*/
 RAG/__pycache__/
 RAG/.idea/
 RAG/.DS_Store
 RAG/*.pyc
 
-# ==================== 学习/测试临时文件 ====================
+# 补充：在 RAG/ 目录下直接匹配的规则（双重保险）
+chroma_db/
+chat_history/
+data/
+study/
+material*/
+__pycache__/
+.DS_Store
+.idea/
+
+# ==================== 临时文件 ====================
 test_temp/
 *.tmp
 *.log
