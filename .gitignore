@@ -1,54 +1,37 @@
-# ===================== Python 核心忽略 =====================
-# 编译字节码
+# ==================== Python ====================
 __pycache__/
 *.py[cod]
 *.pyc
-*.pyo
-*.pyd
-*.so
-# 虚拟环境
 .venv/
 venv/
-env/
-ENV/
-# 打包产物
-*.egg-info/
-dist/
-build/
-# 环境变量
-.env
-.env.*
 
-# ===================== IDE/编辑器忽略 =====================
-# PyCharm/IDEA
+# ==================== IDE ====================
 .idea/
-*.iml
-# VSCode
 .vscode/
-# 临时编辑文件
-*.swp
-*.swo
-*~
-
-# ===================== 项目专属忽略（匹配Agent内结构） =====================
-# 向量库（Agent内的chroma_db）
-Agent/chroma_db/
-# 数据文件夹（Agent内的data，含PDF等原始资料）
-Agent/data/
-# 日志文件夹（Agent内的logs）
-Agent/logs/
-# MD5记录文件（Agent内的md5_record.txt）
-Agent/md5_record.txt
-# 系统隐藏文件（Agent内的.DS_Store）
-Agent/.DS_Store
-# 所有DS_Store文件
 .DS_Store
-.DS_Store?
-._*
-Thumbs.db
+*.swp
 
-# ===================== 临时/冗余文件 =====================
+# ==================== 项目数据（Agent） ====================
+Agent/chroma_db/
+Agent/data/
+Agent/logs/
+Agent/md5_record.txt
+Agent/__pycache__/
+Agent/.DS_Store
+Agent/.idea/
+
+# ==================== 项目数据（RAG） ====================
+RAG/chroma_db/
+RAG/chat_history/
+RAG/data/
+RAG/study/
+RAG/__pycache__/
+RAG/.idea/
+RAG/.DS_Store
+RAG/*.pyc
+
+# ==================== 学习/测试临时文件 ====================
+test_temp/
 *.tmp
-*.temp
-*.bak
 *.log
+*.bak
